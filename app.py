@@ -1,6 +1,5 @@
 import collections.abc
 import datetime
-import json
 import logging
 from typing import Final, Any
 
@@ -38,7 +37,7 @@ async def _errors_handling(
 async def _get_geocoding() -> dict[str, Any]:
     async with httpx.AsyncClient() as client:
         res = await client.get(url=geocoding_url)
-    return json.loads(res.text)
+    return res.json()
 
 
 async def _get_lat_lon() -> tuple[str, str]:
@@ -52,7 +51,7 @@ async def _get_temp() -> int | None:
 
     async with httpx.AsyncClient() as client:
         res = await client.get(url=request_url)
-    response = json.loads(res.text)
+    response = res.json()
     return response.get('main', {}).get('temp', None)
 
 
@@ -69,7 +68,7 @@ class Date(pydantic.BaseModel):
 
 
 class Token(pydantic.BaseModel):
-    auth_token = pydantic.Field(min_length=32)
+    auth_token: str = pydantic.Field(min_length=32)
 
 
 class CheckToken:
@@ -81,7 +80,8 @@ class CheckToken:
     path='/get-weather',
     dependencies=[
         fastapi.Depends(CheckToken)
-    ]
+    ],
+    response_model=None
 )
 async def get_weather(
         date: Date
@@ -95,4 +95,4 @@ async def get_weather(
 
 app.include_router(route)
 app.add_middleware(_errors_handling)
-schedule.every().hour.do(_save_temp())  # would be better to delegate it to celery and do it in async way
+schedule.every().hour.do(_save_temp)  # would be better to delegate it to celery and do it in async way
